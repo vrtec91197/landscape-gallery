@@ -1,0 +1,18 @@
+services:
+  gallery:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./photos:/app/photos
+      - ./data:/app/data
+      - gallery-public-photos:/app/public/photos
+      - gallery-thumbnails:/app/public/thumbnails
+    environment:
+      - DB_PATH=/app/data/gallery.db
+      - SCAN_DIR=/app/photos
+    restart: unless-stopped
+
+volumes:
+  gallery-public-photos:
+  gallery-thumbnails:

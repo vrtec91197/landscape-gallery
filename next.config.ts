@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: [],
+  },
+  serverExternalPackages: ["better-sqlite3", "sharp"],
+  output: "standalone",
 };
 
 export default nextConfig;
