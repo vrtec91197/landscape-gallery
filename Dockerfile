@@ -28,8 +28,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Create directories for data and photos
-RUN mkdir -p /app/data /app/photos /app/public/photos /app/public/thumbnails && \
-    chown -R nextjs:nodejs /app/data /app/photos /app/public/photos /app/public/thumbnails
+# /data is the persistent volume mount point on Fly.io
+RUN mkdir -p /data /data/photos /app/public/photos /app/public/thumbnails && \
+    chown -R nextjs:nodejs /data /app/public/photos /app/public/thumbnails
 
 USER nextjs
 
@@ -37,7 +38,5 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-ENV DB_PATH=/app/data/gallery.db
-ENV SCAN_DIR=/app/photos
 
 CMD ["node", "server.js"]

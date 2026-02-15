@@ -1,0 +1,26 @@
+app = 'landscape-gallery'
+primary_region = 'ord'
+
+[build]
+
+[env]
+  NODE_ENV = 'production'
+  DB_PATH = '/data/gallery.db'
+  SCAN_DIR = '/data/photos'
+  PORT = '3000'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+[mounts]
+  source = 'gallery_data'
+  destination = '/data'
