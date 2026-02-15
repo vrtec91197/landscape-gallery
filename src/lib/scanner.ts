@@ -35,6 +35,50 @@ function findImages(dir: string): string[] {
   return results;
 }
 
+async function generateBlurDataUrl(input: Buffer | string): Promise<string> {
+  const blurBuffer = await sharp(input)
+    .resize(16, 16, { fit: "inside" })
+    .blur(4)
+    .webp({ quality: 20 })
+    .toBuffer();
+  return `data:image/webp;base64,${blurBuffer.toString("base64")}`;
+}
+
+interface ProcessedImage {
+  metadata: sharp.Metadata;
+  thumbFilename: string;
+  thumbLargeFilename: string;
+  blurDataUrl: string;
+}
+
+async function processImage(input: Buffer | string, filename: string): Promise<ProcessedImage> {
+  const metadata = await sharp(input).metadata();
+  const baseName = filename.replace(/\.[^.]+$/, "");
+
+  // Small thumbnail (600px) for grid
+  const thumbFilename = `thumb_${baseName}.webp`;
+  const thumbPath = path.join(THUMBS_DIR, thumbFilename);
+  await sharp(input)
+    .resize(600, 600, { fit: "inside", withoutEnlargement: true })
+    .sharpen({ sigma: 0.5, m1: 0.5, m2: 0.5 })
+    .webp({ quality: 82 })
+    .toFile(thumbPath);
+
+  // Large thumbnail (1200px) for high-DPI grid and lightbox preload
+  const thumbLargeFilename = `thumb_lg_${baseName}.webp`;
+  const thumbLargePath = path.join(THUMBS_DIR, thumbLargeFilename);
+  await sharp(input)
+    .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
+    .sharpen({ sigma: 0.5, m1: 0.5, m2: 0.5 })
+    .webp({ quality: 85 })
+    .toFile(thumbLargePath);
+
+  // Blur placeholder
+  const blurDataUrl = await generateBlurDataUrl(input);
+
+  return { metadata, thumbFilename, thumbLargeFilename, blurDataUrl };
+}
+
 export async function scanPhotos(): Promise<{ added: number; skipped: number }> {
   ensureDirs();
 
@@ -58,15 +102,8 @@ export async function scanPhotos(): Promise<{ added: number; skipped: number }> 
         fs.copyFileSync(imagePath, destPath);
       }
 
-      // Generate thumbnail
-      const thumbFilename = `thumb_${filename.replace(/\.[^.]+$/, ".webp")}`;
-      const thumbPath = path.join(THUMBS_DIR, thumbFilename);
-      const metadata = await sharp(imagePath).metadata();
-
-      await sharp(imagePath)
-        .resize(400, 400, { fit: "inside", withoutEnlargement: true })
-        .webp({ quality: 80 })
-        .toFile(thumbPath);
+      const { metadata, thumbFilename, thumbLargeFilename, blurDataUrl } =
+        await processImage(imagePath, filename);
 
       // Extract EXIF
       const exif = await extractExif(imagePath);
@@ -77,6 +114,8 @@ export async function scanPhotos(): Promise<{ added: number; skipped: number }> 
         width: metadata.width || 0,
         height: metadata.height || 0,
         thumbnail_path: `/thumbnails/${thumbFilename}`,
+        thumbnail_large_path: `/thumbnails/${thumbLargeFilename}`,
+        blur_data_url: blurDataUrl,
         album_id: null,
         exif_json: JSON.stringify(exif),
       });
@@ -102,15 +141,8 @@ export async function processUploadedFile(
   const destPath = path.join(PHOTOS_DIR, filename);
   fs.writeFileSync(destPath, buffer);
 
-  // Generate thumbnail
-  const thumbFilename = `thumb_${filename.replace(/\.[^.]+$/, ".webp")}`;
-  const thumbPath = path.join(THUMBS_DIR, thumbFilename);
-  const metadata = await sharp(buffer).metadata();
-
-  await sharp(buffer)
-    .resize(400, 400, { fit: "inside", withoutEnlargement: true })
-    .webp({ quality: 80 })
-    .toFile(thumbPath);
+  const { metadata, thumbFilename, thumbLargeFilename, blurDataUrl } =
+    await processImage(buffer, filename);
 
   // Extract EXIF
   const exif = await extractExif(destPath);
@@ -121,6 +153,8 @@ export async function processUploadedFile(
     width: metadata.width || 0,
     height: metadata.height || 0,
     thumbnail_path: `/thumbnails/${thumbFilename}`,
+    thumbnail_large_path: `/thumbnails/${thumbLargeFilename}`,
+    blur_data_url: blurDataUrl,
     album_id: albumId || null,
     exif_json: JSON.stringify(exif),
   });

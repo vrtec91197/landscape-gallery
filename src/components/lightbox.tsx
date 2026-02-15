@@ -16,7 +16,13 @@ interface LightboxProps {
 
 export function Lightbox({ photos, currentIndex, onClose, onNavigate }: LightboxProps) {
   const [showExif, setShowExif] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const photo = photos[currentIndex];
+
+  // Reset loaded state on navigation
+  useEffect(() => {
+    setLoaded(false);
+  }, [currentIndex]);
 
   const exif: ExifData = (() => {
     try {
@@ -114,13 +120,24 @@ export function Lightbox({ photos, currentIndex, onClose, onNavigate }: Lightbox
 
         {/* Image */}
         <div className="relative h-[calc(100vh-8rem)] w-full">
+          {/* Loading spinner */}
+          {!loaded && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+            </div>
+          )}
           <Image
             src={photo.path}
             alt={photo.filename}
             fill
-            className="object-contain"
+            className={`object-contain transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
             sizes="100vw"
+            quality={90}
             priority
+            onLoad={() => setLoaded(true)}
+            {...(photo.blur_data_url
+              ? { placeholder: "blur" as const, blurDataURL: photo.blur_data_url }
+              : {})}
           />
         </div>
       </div>

@@ -14,10 +14,11 @@ export async function POST(request: NextRequest) {
   }
 
   const results = [];
-  for (const file of files) {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
     const buffer = Buffer.from(await file.arrayBuffer());
-    // Sanitize filename to prevent path traversal
-    const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+    // Unique name per file using timestamp + index
+    const safeName = `${Date.now()}_${i}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
     const photo = await processUploadedFile(
       buffer,
       safeName,

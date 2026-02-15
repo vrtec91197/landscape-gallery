@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPhotos, getPhoto, updatePhoto, deletePhoto } from "@/lib/db";
+import { getPhotos, getPhotoCount, getPhoto, updatePhoto, deletePhoto } from "@/lib/db";
 import { scanPhotos } from "@/lib/scanner";
 import { requireAuth } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const albumId = request.nextUrl.searchParams.get("albumId");
-  const photos = getPhotos(albumId ? parseInt(albumId) : undefined);
-  return NextResponse.json(photos);
+  const limit = request.nextUrl.searchParams.get("limit");
+  const offset = request.nextUrl.searchParams.get("offset");
+
+  const parsedAlbumId = albumId ? parseInt(albumId) : undefined;
+  const photos = getPhotos(
+    parsedAlbumId,
+    limit ? parseInt(limit) : undefined,
+    offset ? parseInt(offset) : undefined
+  );
+  const total = getPhotoCount(parsedAlbumId);
+
+  return NextResponse.json({ photos, total });
 }
 
 export async function POST(request: NextRequest) {

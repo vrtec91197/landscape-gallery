@@ -33,6 +33,8 @@ function initializeDb(db: Database.Database) {
       width INTEGER DEFAULT 0,
       height INTEGER DEFAULT 0,
       thumbnail_path TEXT DEFAULT '',
+      thumbnail_large_path TEXT DEFAULT '',
+      blur_data_url TEXT DEFAULT '',
       album_id INTEGER REFERENCES albums(id) ON DELETE SET NULL,
       exif_json TEXT DEFAULT '{}',
       created_at TEXT DEFAULT (datetime('now'))
@@ -65,6 +67,8 @@ export interface Photo {
   width: number;
   height: number;
   thumbnail_path: string;
+  thumbnail_large_path: string;
+  blur_data_url: string;
   album_id: number | null;
   exif_json: string;
   created_at: string;
@@ -79,12 +83,32 @@ export interface Album {
   created_at: string;
 }
 
-export function getPhotos(albumId?: number): Photo[] {
+export function getPhotos(albumId?: number, limit?: number, offset?: number): Photo[] {
+  const db = getDb();
+  let query = albumId
+    ? "SELECT * FROM photos WHERE album_id = ? ORDER BY created_at DESC"
+    : "SELECT * FROM photos ORDER BY created_at DESC";
+
+  const params: unknown[] = albumId ? [albumId] : [];
+
+  if (limit) {
+    query += " LIMIT ?";
+    params.push(limit);
+    if (offset) {
+      query += " OFFSET ?";
+      params.push(offset);
+    }
+  }
+
+  return db.prepare(query).all(...params) as Photo[];
+}
+
+export function getPhotoCount(albumId?: number): number {
   const db = getDb();
   if (albumId) {
-    return db.prepare("SELECT * FROM photos WHERE album_id = ? ORDER BY created_at DESC").all(albumId) as Photo[];
+    return (db.prepare("SELECT COUNT(*) as count FROM photos WHERE album_id = ?").get(albumId) as { count: number }).count;
   }
-  return db.prepare("SELECT * FROM photos ORDER BY created_at DESC").all() as Photo[];
+  return (db.prepare("SELECT COUNT(*) as count FROM photos").get() as { count: number }).count;
 }
 
 export function getPhoto(id: number): Photo | undefined {
@@ -95,7 +119,7 @@ export function getPhoto(id: number): Photo | undefined {
 export function createPhoto(photo: Omit<Photo, "id" | "created_at">): Photo {
   const db = getDb();
   const stmt = db.prepare(
-    "INSERT INTO photos (filename, path, width, height, thumbnail_path, album_id, exif_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO photos (filename, path, width, height, thumbnail_path, thumbnail_large_path, blur_data_url, album_id, exif_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
   );
   const result = stmt.run(
     photo.filename,
@@ -103,6 +127,8 @@ export function createPhoto(photo: Omit<Photo, "id" | "created_at">): Photo {
     photo.width,
     photo.height,
     photo.thumbnail_path,
+    photo.thumbnail_large_path,
+    photo.blur_data_url,
     photo.album_id,
     photo.exif_json
   );

@@ -6,9 +6,10 @@ import type { Photo } from "@/lib/db";
 interface PhotoCardProps {
   photo: Photo;
   onClick: () => void;
+  priority?: boolean;
 }
 
-export function PhotoCard({ photo, onClick }: PhotoCardProps) {
+export function PhotoCard({ photo, onClick, priority = false }: PhotoCardProps) {
   const aspectRatio = photo.width && photo.height ? photo.width / photo.height : 4 / 3;
 
   return (
@@ -18,12 +19,17 @@ export function PhotoCard({ photo, onClick }: PhotoCardProps) {
     >
       <div className="relative overflow-hidden" style={{ aspectRatio }}>
         <Image
-          src={photo.thumbnail_path || photo.path}
+          src={photo.thumbnail_large_path || photo.thumbnail_path || photo.path}
           alt={photo.filename}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="object-cover transition-all duration-500 group-hover:scale-[1.03] group-hover:opacity-90"
-          loading="lazy"
+          quality={80}
+          loading={priority ? "eager" : "lazy"}
+          priority={priority}
+          {...(photo.blur_data_url
+            ? { placeholder: "blur" as const, blurDataURL: photo.blur_data_url }
+            : {})}
         />
       </div>
     </div>

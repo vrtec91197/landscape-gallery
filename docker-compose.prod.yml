@@ -1,0 +1,38 @@
+services:
+  gallery:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ./photos:/app/photos
+      - ./data:/app/data
+      - gallery-public-photos:/app/public/photos
+      - gallery-thumbnails:/app/public/thumbnails
+    environment:
+      - DB_PATH=/app/data/gallery.db
+      - SCAN_DIR=/app/photos
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - NODE_ENV=production
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - gallery
+
+volumes:
+  gallery-public-photos:
+  gallery-thumbnails:
+  caddy-data:
+  caddy-config:

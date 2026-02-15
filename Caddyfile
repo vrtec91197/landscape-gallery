@@ -1,0 +1,15 @@
+{$DOMAIN:localhost} {
+	reverse_proxy gallery:3000
+
+	encode gzip zstd
+
+	header /photos/* {
+		Cache-Control "public, max-age=31536000, immutable"
+	}
+	header /thumbnails/* {
+		Cache-Control "public, max-age=31536000, immutable"
+	}
+	header /_next/static/* {
+		Cache-Control "public, max-age=31536000, immutable"
+	}
+}
