@@ -22,9 +22,9 @@ export function PhotoCard({ photo, onClick, priority = false }: PhotoCardProps) 
           src={photo.thumbnail_large_path || photo.thumbnail_path || photo.path}
           alt={photo.filename}
           fill
+          unoptimized
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="object-cover transition-all duration-500 group-hover:scale-[1.03] group-hover:opacity-90"
-          quality={80}
           loading={priority ? "eager" : "lazy"}
           priority={priority}
           {...(photo.blur_data_url

@@ -1,6 +1,9 @@
 import { getAnalyticsSummary, getViewsOverTime } from "@/lib/analytics";
+import { getPhotos, getAlbums } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { AdminTabs } from "@/components/admin-tabs";
+import { AdminPhotos } from "@/components/admin-photos";
 
 export const dynamic = "force-dynamic";
 
@@ -90,14 +93,13 @@ function BarChart({ data }: { data: { date: string; views: number }[] }) {
   );
 }
 
-export default function AdminPage() {
+function AnalyticsContent() {
   const summary = getAnalyticsSummary(30);
   const viewsOverTime = getViewsOverTime(30);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
-      <p className="mt-2 text-muted-foreground">Last 30 days</p>
+    <>
+      <p className="text-muted-foreground">Last 30 days</p>
 
       {/* Stat Cards */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -146,6 +148,38 @@ export default function AdminPage() {
           </Card>
         )}
       </div>
+    </>
+  );
+}
+
+export default function AdminPage() {
+  const photos = getPhotos();
+  const albums = getAlbums();
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-8">
+      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+
+      <AdminTabs
+        analyticsContent={<AnalyticsContent />}
+        photosContent={
+          <AdminPhotos
+            initialPhotos={photos.map((p) => ({
+              id: p.id,
+              filename: p.filename,
+              path: p.path,
+              thumbnail_path: p.thumbnail_path,
+              album_id: p.album_id,
+              created_at: p.created_at,
+            }))}
+            albums={albums.map((a) => ({
+              id: a.id,
+              name: a.name,
+              slug: a.slug,
+            }))}
+          />
+        }
+      />
     </div>
   );
 }

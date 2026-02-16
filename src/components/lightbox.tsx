@@ -130,9 +130,9 @@ export function Lightbox({ photos, currentIndex, onClose, onNavigate }: Lightbox
             src={photo.path}
             alt={photo.filename}
             fill
+            unoptimized
             className={`object-contain transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
             sizes="100vw"
-            quality={90}
             priority
             onLoad={() => setLoaded(true)}
             {...(photo.blur_data_url

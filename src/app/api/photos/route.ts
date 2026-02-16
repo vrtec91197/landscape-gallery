@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
 import { getPhotos, getPhotoCount, getPhoto, updatePhoto, deletePhoto } from "@/lib/db";
 import { scanPhotos } from "@/lib/scanner";
 import { requireAuth } from "@/lib/auth";
@@ -55,6 +57,30 @@ export async function DELETE(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  const photo = getPhoto(parseInt(id));
+  if (!photo) {
+    return NextResponse.json({ error: "Photo not found" }, { status: 404 });
+  }
+
+  // Remove physical files from disk
+  const publicDir = path.join(process.cwd(), "public");
+  const filesToDelete = [
+    photo.path,
+    photo.thumbnail_path,
+    photo.thumbnail_large_path,
+  ].filter(Boolean);
+
+  for (const filePath of filesToDelete) {
+    const fullPath = path.join(publicDir, filePath);
+    try {
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+      }
+    } catch (err) {
+      console.error(`Failed to delete file ${fullPath}:`, err);
+    }
   }
 
   deletePhoto(parseInt(id));
