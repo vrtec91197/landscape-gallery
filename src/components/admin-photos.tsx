@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -119,13 +118,16 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
       <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {photos.map((photo) => (
           <Card key={photo.id} className="overflow-hidden">
-            <div className="group relative aspect-square">
-              <Image
+            <div className="group relative aspect-square bg-muted">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={photo.thumbnail_path}
                 alt={photo.filename}
-                fill
-                className="object-cover"
-                sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="lazy"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
               />
               <div className="absolute inset-0 flex items-start justify-end gap-1 bg-black/0 p-2 opacity-0 transition-opacity group-hover:bg-black/40 group-hover:opacity-100">
                 <Button
