@@ -29,8 +29,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Create directories for data and photos
 # /data is the persistent volume mount point on Fly.io
-RUN mkdir -p /data /data/photos /app/public/photos /app/public/thumbnails && \
+RUN mkdir -p /data /data/photos /data/photos_public /data/thumbnails /app/public/photos /app/public/thumbnails && \
     chown -R nextjs:nodejs /data /app/public/photos /app/public/thumbnails
+
+# Copy startup script that symlinks persistent volume dirs
+COPY --chown=nextjs:nodejs start.sh ./start.sh
 
 USER nextjs
 
@@ -39,4 +42,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["./start.sh"]
