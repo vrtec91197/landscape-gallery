@@ -19,6 +19,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+RUN apk add --no-cache su-exec
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
@@ -32,10 +33,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 RUN mkdir -p /data /data/photos /data/photos_public /data/thumbnails /app/public/photos /app/public/thumbnails && \
     chown -R nextjs:nodejs /data /app/public/photos /app/public/thumbnails
 
-# Copy startup script that symlinks persistent volume dirs
-COPY --chown=nextjs:nodejs start.sh ./start.sh
-
-USER nextjs
+# Copy startup script (runs as root to fix perms, then drops to nextjs)
+COPY start.sh ./start.sh
 
 EXPOSE 3000
 
