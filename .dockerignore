@@ -3,6 +3,8 @@ node_modules
 .git
 data
 photos
+public/photos
+public/thumbnails
 *.md
 public/photos
 public/thumbnails
