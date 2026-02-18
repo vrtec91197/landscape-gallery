@@ -119,7 +119,10 @@ export function Lightbox({ photos, currentIndex, onClose, onNavigate }: Lightbox
         </div>
 
         {/* Image */}
-        <div className="relative h-[calc(100vh-8rem)] w-full">
+        <div
+          className="relative h-[calc(100vh-8rem)] w-full select-none"
+          onContextMenu={(e) => e.preventDefault()}
+        >
           {/* Loading spinner */}
           {!loaded && (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -135,6 +138,7 @@ export function Lightbox({ photos, currentIndex, onClose, onNavigate }: Lightbox
             sizes="100vw"
             priority
             onLoad={() => setLoaded(true)}
+            style={{ pointerEvents: "none" }}
             {...(photo.blur_data_url
               ? { placeholder: "blur" as const, blurDataURL: photo.blur_data_url }
               : {})}

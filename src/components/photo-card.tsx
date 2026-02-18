@@ -14,8 +14,9 @@ export function PhotoCard({ photo, onClick, priority = false }: PhotoCardProps) 
 
   return (
     <div
-      className="group cursor-pointer overflow-hidden break-inside-avoid mb-2"
+      className="group cursor-pointer overflow-hidden break-inside-avoid mb-2 select-none"
       onClick={onClick}
+      onContextMenu={(e) => e.preventDefault()}
     >
       <div className="relative overflow-hidden" style={{ aspectRatio }}>
         <Image
@@ -27,6 +28,7 @@ export function PhotoCard({ photo, onClick, priority = false }: PhotoCardProps) 
           className="object-cover transition-all duration-500 group-hover:scale-[1.03] group-hover:opacity-90"
           loading={priority ? "eager" : "lazy"}
           priority={priority}
+          style={{ pointerEvents: "none" }}
           {...(photo.blur_data_url
             ? { placeholder: "blur" as const, blurDataURL: photo.blur_data_url }
             : {})}
