@@ -1,8 +1,18 @@
+import type { Metadata } from "next";
 import { getAlbums, getPhoto } from "@/lib/db";
 import { AlbumCard } from "@/components/album-card";
 import { CreateAlbumButton } from "@/components/create-album-button";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Albums",
+  description: "Browse landscape photography collections organised by album.",
+  openGraph: {
+    title: "Albums | Landscape Gallery",
+    description: "Browse landscape photography collections organised by album.",
+  },
+};
 
 export default function AlbumsPage() {
   const albums = getAlbums();

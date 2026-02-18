@@ -15,9 +15,39 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.DOMAIN
+  ? `https://${process.env.DOMAIN}`
+  : "http://localhost:3000";
+
 export const metadata: Metadata = {
-  title: "Landscape Gallery",
-  description: "A landscape photography gallery",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "Landscape Gallery",
+    template: "%s | Landscape Gallery",
+  },
+  description:
+    "A curated collection of landscape photography. Explore stunning nature, mountain, and wilderness photos.",
+  keywords: ["landscape photography", "nature photos", "gallery", "wilderness", "mountains"],
+  authors: [{ name: "Landscape Gallery" }],
+  openGraph: {
+    type: "website",
+    siteName: "Landscape Gallery",
+    title: "Landscape Gallery",
+    description:
+      "A curated collection of landscape photography. Explore stunning nature, mountain, and wilderness photos.",
+    url: siteUrl,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Landscape Gallery",
+    description:
+      "A curated collection of landscape photography. Explore stunning nature, mountain, and wilderness photos.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
 };
 
 export default function RootLayout({

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getAlbum, getPhotos } from "@/lib/db";
 import { PhotoGrid } from "@/components/photo-grid";
@@ -6,6 +7,26 @@ export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const album = getAlbum(slug);
+  if (!album) return {};
+
+  const title = album.name;
+  const description = album.description
+    ? album.description
+    : `Landscape photos in the ${album.name} album.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title: `${title} | Landscape Gallery`,
+      description,
+    },
+  };
 }
 
 export default async function AlbumDetailPage({ params }: Props) {

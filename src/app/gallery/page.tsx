@@ -1,7 +1,17 @@
+import type { Metadata } from "next";
 import { getPhotos, getPhotoCount } from "@/lib/db";
 import { GalleryClient } from "@/components/gallery-client";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Gallery",
+  description: "Browse the full landscape photography collection.",
+  openGraph: {
+    title: "Gallery | Landscape Gallery",
+    description: "Browse the full landscape photography collection.",
+  },
+};
 
 const PAGE_SIZE = 30;
 
