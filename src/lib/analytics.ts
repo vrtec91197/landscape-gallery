@@ -6,6 +6,7 @@ export interface PageViewInput {
   referrer: string;
   userAgent: string;
   ip: string;
+  country?: string;
 }
 
 function hashIp(ip: string, userAgent: string): string {
@@ -34,8 +35,8 @@ export function recordPageView(input: PageViewInput): void {
   const device = parseDevice(input.userAgent);
 
   db.prepare(
-    "INSERT INTO page_views (path, referrer, user_agent, ip_hash, browser, device) VALUES (?, ?, ?, ?, ?, ?)"
-  ).run(input.path, input.referrer, input.userAgent, ipHash, browser, device);
+    "INSERT INTO page_views (path, referrer, user_agent, ip_hash, country, browser, device) VALUES (?, ?, ?, ?, ?, ?, ?)"
+  ).run(input.path, input.referrer, input.userAgent, ipHash, input.country || "", browser, device);
 }
 
 interface TopItem {

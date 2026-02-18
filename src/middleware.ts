@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, NextFetchEvent } from "next/server";
 
 const BOT_PATTERN = /bot|crawl|spider|slurp|googlebot|bingbot|yandex|baidu|duckduck/i;
 
-export async function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
 
   // Skip API routes, static files, and Next.js internals
@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
 
   const trackingUrl = new URL("/api/analytics/track", request.url);
 
-  try {
+  event.waitUntil(
     fetch(trackingUrl.toString(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -43,10 +43,8 @@ export async function middleware(request: NextRequest) {
       }),
     }).catch(() => {
       // Silently ignore tracking failures
-    });
-  } catch {
-    // Silently ignore
-  }
+    })
+  );
 
   return NextResponse.next();
 }
