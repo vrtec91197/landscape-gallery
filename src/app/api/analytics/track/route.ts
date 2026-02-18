@@ -26,19 +26,26 @@ async function resolveCountry(ip: string): Promise<string> {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { path, referrer, userAgent, ip } = body;
+    const { path, referrer, userAgent } = body;
 
     if (!path) {
       return NextResponse.json({ error: "path is required" }, { status: 400 });
     }
 
-    const country = await resolveCountry(ip || "");
+    // Always resolve IP server-side — never trust the client-supplied value
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      request.headers.get("fly-client-ip") ||
+      "unknown";
+
+    const country = await resolveCountry(ip);
 
     recordPageView({
       path,
       referrer: referrer || "",
       userAgent: userAgent || "",
-      ip: ip || "",
+      ip,
       country,
     });
 
