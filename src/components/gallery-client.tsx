@@ -9,9 +9,10 @@ interface GalleryClientProps {
   initialPhotos: Photo[];
   total: number;
   pageSize: number;
+  viewCounts?: Record<number, number>;
 }
 
-export function GalleryClient({ initialPhotos, total, pageSize }: GalleryClientProps) {
+export function GalleryClient({ initialPhotos, total, pageSize, viewCounts }: GalleryClientProps) {
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos);
   const [loading, setLoading] = useState(false);
   const hasMore = photos.length < total;
@@ -31,7 +32,7 @@ export function GalleryClient({ initialPhotos, total, pageSize }: GalleryClientP
 
   return (
     <>
-      <PhotoGrid photos={photos} />
+      <PhotoGrid photos={photos} viewCounts={viewCounts} />
       {hasMore && (
         <div className="mt-8 flex justify-center">
           <Button

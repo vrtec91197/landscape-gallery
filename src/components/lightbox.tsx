@@ -24,6 +24,15 @@ export function Lightbox({ photos, currentIndex, onClose, onNavigate }: Lightbox
     setLoaded(false);
   }, [currentIndex]);
 
+  // Record unique view when photo changes
+  useEffect(() => {
+    fetch("/api/photos/view", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photoId: photo.id }),
+    }).catch(() => {});
+  }, [photo.id]);
+
   const exif: ExifData = (() => {
     try {
       return JSON.parse(photo.exif_json);

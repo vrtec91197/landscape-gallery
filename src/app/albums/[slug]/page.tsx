@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getAlbum, getPhotos } from "@/lib/db";
+import { getAlbum, getPhotos, getPhotoViewCounts } from "@/lib/db";
 import { PhotoGrid } from "@/components/photo-grid";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +38,7 @@ export default async function AlbumDetailPage({ params }: Props) {
   }
 
   const photos = getPhotos(album.id);
+  const viewCounts = getPhotoViewCounts();
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -50,7 +51,7 @@ export default async function AlbumDetailPage({ params }: Props) {
           {photos.length} photo{photos.length !== 1 ? "s" : ""}
         </p>
       </div>
-      <PhotoGrid photos={photos} />
+      <PhotoGrid photos={photos} viewCounts={viewCounts} />
     </div>
   );
 }

@@ -57,6 +57,16 @@ function initializeDb(db: Database.Database) {
 
     CREATE INDEX IF NOT EXISTS idx_pv_created ON page_views(created_at);
     CREATE INDEX IF NOT EXISTS idx_pv_path ON page_views(path);
+
+    CREATE TABLE IF NOT EXISTS photo_views (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      photo_id INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+      ip_hash TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(photo_id, ip_hash)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_photo_views_photo ON photo_views(photo_id);
   `);
 }
 
@@ -200,4 +210,29 @@ export function createAlbum(album: { name: string; slug: string; description?: s
 export function updateAlbumCover(albumId: number, photoId: number): void {
   const db = getDb();
   db.prepare("UPDATE albums SET cover_photo_id = ? WHERE id = ?").run(photoId, albumId);
+}
+
+export function recordPhotoView(photoId: number, ipHash: string): void {
+  const db = getDb();
+  db.prepare("INSERT OR IGNORE INTO photo_views (photo_id, ip_hash) VALUES (?, ?)").run(photoId, ipHash);
+}
+
+export function getPhotoViewCounts(): Record<number, number> {
+  const db = getDb();
+  const rows = db.prepare(
+    "SELECT photo_id, COUNT(*) as count FROM photo_views GROUP BY photo_id"
+  ).all() as { photo_id: number; count: number }[];
+  return Object.fromEntries(rows.map((r) => [r.photo_id, r.count]));
+}
+
+export function getTopViewedPhotos(limit: number = 10): { photo_id: number; filename: string; path: string; thumbnail_path: string; views: number }[] {
+  const db = getDb();
+  return db.prepare(`
+    SELECT pv.photo_id, p.filename, p.path, p.thumbnail_path, COUNT(*) as views
+    FROM photo_views pv
+    JOIN photos p ON p.id = pv.photo_id
+    GROUP BY pv.photo_id
+    ORDER BY views DESC
+    LIMIT ?
+  `).all(limit) as { photo_id: number; filename: string; path: string; thumbnail_path: string; views: number }[];
 }

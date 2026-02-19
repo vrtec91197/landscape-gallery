@@ -8,9 +8,10 @@ import { Lightbox } from "./lightbox";
 interface PhotoGridProps {
   photos: Photo[];
   priorityCount?: number;
+  viewCounts?: Record<number, number>;
 }
 
-export function PhotoGrid({ photos, priorityCount = 6 }: PhotoGridProps) {
+export function PhotoGrid({ photos, priorityCount = 6, viewCounts }: PhotoGridProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   if (photos.length === 0) {
@@ -33,6 +34,7 @@ export function PhotoGrid({ photos, priorityCount = 6 }: PhotoGridProps) {
             photo={photo}
             onClick={() => setLightboxIndex(index)}
             priority={index < priorityCount}
+            viewCount={viewCounts?.[photo.id]}
           />
         ))}
       </div>

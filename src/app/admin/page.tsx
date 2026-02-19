@@ -1,5 +1,5 @@
 import { getAnalyticsSummary, getViewsOverTime } from "@/lib/analytics";
-import { getPhotos, getAlbums } from "@/lib/db";
+import { getPhotos, getAlbums, getTopViewedPhotos } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { AdminTabs } from "@/components/admin-tabs";
@@ -96,6 +96,7 @@ function BarChart({ data }: { data: { date: string; views: number }[] }) {
 function AnalyticsContent() {
   const summary = getAnalyticsSummary(30);
   const viewsOverTime = getViewsOverTime(30);
+  const topPhotos = getTopViewedPhotos(10);
 
   return (
     <>
@@ -148,6 +149,44 @@ function AnalyticsContent() {
           </Card>
         )}
       </div>
+
+      {topPhotos.length > 0 && (
+        <>
+          <Separator className="my-8" />
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Most Viewed Photos
+              </h3>
+              <div className="space-y-3">
+                {topPhotos.map((photo, i) => (
+                  <div key={photo.photo_id} className="flex items-center gap-3">
+                    <span className="w-5 shrink-0 text-sm text-muted-foreground">{i + 1}.</span>
+                    {photo.thumbnail_path && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={photo.thumbnail_path}
+                        alt={photo.filename}
+                        className="h-10 w-10 rounded object-cover"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{photo.filename}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                      {photo.views}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </>
   );
 }
