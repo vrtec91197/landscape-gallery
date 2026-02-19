@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { getAlbums } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 const siteUrl = process.env.DOMAIN
   ? `https://${process.env.DOMAIN}`
   : "http://localhost:3000";
