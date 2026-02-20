@@ -221,6 +221,16 @@ export function updateAlbumCover(albumId: number, photoId: number): void {
   db.prepare("UPDATE albums SET cover_photo_id = ? WHERE id = ?").run(photoId, albumId);
 }
 
+export function getPhotosWithoutSize(): Pick<Photo, "id" | "path">[] {
+  const db = getDb();
+  return db.prepare("SELECT id, path FROM photos WHERE file_size_bytes = 0 OR file_size_bytes IS NULL").all() as Pick<Photo, "id" | "path">[];
+}
+
+export function updatePhotoSize(id: number, fileSizeBytes: number): void {
+  const db = getDb();
+  db.prepare("UPDATE photos SET file_size_bytes = ? WHERE id = ?").run(fileSizeBytes, id);
+}
+
 export function recordPhotoView(photoId: number, ipHash: string): void {
   const db = getDb();
   db.prepare("INSERT OR IGNORE INTO photo_views (photo_id, ip_hash) VALUES (?, ?)").run(photoId, ipHash);

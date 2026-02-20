@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import sharp from "sharp";
-import { createPhoto, photoExistsByPath } from "./db";
+import { createPhoto, photoExistsByPath, getPhotosWithoutSize, updatePhotoSize } from "./db";
 import { extractExif } from "./exif";
 
 const SCAN_DIR = process.env.SCAN_DIR || path.join(process.cwd(), "photos");
@@ -77,6 +77,22 @@ async function processImage(input: Buffer | string, filename: string): Promise<P
   const blurDataUrl = await generateBlurDataUrl(input);
 
   return { metadata, thumbFilename, thumbLargeFilename, blurDataUrl };
+}
+
+export function backfillFileSizes(): number {
+  const photos = getPhotosWithoutSize();
+  let updated = 0;
+  for (const photo of photos) {
+    const fullPath = path.join(PUBLIC_DIR, photo.path);
+    try {
+      const stat = fs.statSync(fullPath);
+      updatePhotoSize(photo.id, stat.size);
+      updated++;
+    } catch {
+      // File not found on disk — skip
+    }
+  }
+  return updated;
 }
 
 export async function scanPhotos(): Promise<{ added: number; skipped: number }> {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { getPhotos, getPhotoCount, getPhoto, updatePhoto, deletePhoto } from "@/lib/db";
-import { scanPhotos } from "@/lib/scanner";
+import { scanPhotos, backfillFileSizes } from "@/lib/scanner";
 import { requireAuth } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
@@ -25,9 +25,10 @@ export async function POST(request: NextRequest) {
   const authErr = requireAuth(request);
   if (authErr) return authErr;
 
-  // Trigger folder scan
+  // Trigger folder scan + backfill sizes for existing photos
   const result = await scanPhotos();
-  return NextResponse.json(result);
+  const backfilled = backfillFileSizes();
+  return NextResponse.json({ ...result, backfilled });
 }
 
 export async function PATCH(request: NextRequest) {
