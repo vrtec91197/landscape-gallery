@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type SortKey = "date_desc" | "date_asc" | "name_asc" | "name_desc" | "size_desc" | "size_asc";
+
 interface Photo {
   id: number;
   filename: string;
@@ -29,6 +31,7 @@ interface Photo {
   thumbnail_path: string;
   album_id: number | null;
   created_at: string;
+  file_size_bytes: number;
 }
 
 interface Album {
@@ -44,11 +47,34 @@ interface AdminPhotosProps {
 
 export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos);
+  const [sortKey, setSortKey] = useState<SortKey>("date_desc");
   const [deleteTarget, setDeleteTarget] = useState<Photo | null>(null);
   const [editTarget, setEditTarget] = useState<Photo | null>(null);
   const [editFilename, setEditFilename] = useState("");
   const [editAlbumId, setEditAlbumId] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<{ added: number; skipped: number } | null>(null);
+
+  async function handleScan() {
+    setScanning(true);
+    setScanResult(null);
+    try {
+      const res = await fetch("/api/photos", { method: "POST" });
+      if (res.ok) {
+        const result = await res.json();
+        setScanResult(result);
+        // Reload photos list to pick up newly scanned photos + updated sizes
+        const photosRes = await fetch("/api/photos");
+        if (photosRes.ok) {
+          const data = await photosRes.json();
+          setPhotos(data.photos);
+        }
+      }
+    } finally {
+      setScanning(false);
+    }
+  }
 
   function openEdit(photo: Photo) {
     setEditTarget(photo);
@@ -102,6 +128,25 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
     }
   }
 
+  const sortedPhotos = useMemo(() => {
+    return [...photos].sort((a, b) => {
+      switch (sortKey) {
+        case "name_asc":  return a.filename.localeCompare(b.filename);
+        case "name_desc": return b.filename.localeCompare(a.filename);
+        case "size_desc": return b.file_size_bytes - a.file_size_bytes;
+        case "size_asc":  return a.file_size_bytes - b.file_size_bytes;
+        case "date_asc":  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case "date_desc":
+        default:          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+  }, [photos, sortKey]);
+
+  function formatSize(bytes: number) {
+    if (!bytes) return "—";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
   function albumName(albumId: number | null) {
     if (!albumId) return "No album";
     return albums.find((a) => a.id === albumId)?.name || "Unknown";
@@ -115,8 +160,38 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
 
   return (
     <>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <span className="text-sm text-muted-foreground">{photos.length} photos</span>
+        <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="date_desc">Date (newest first)</SelectItem>
+            <SelectItem value="date_asc">Date (oldest first)</SelectItem>
+            <SelectItem value="name_asc">Name A → Z</SelectItem>
+            <SelectItem value="name_desc">Name Z → A</SelectItem>
+            <SelectItem value="size_desc">Size (largest first)</SelectItem>
+            <SelectItem value="size_asc">Size (smallest first)</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button
+          variant="outline"
+          onClick={handleScan}
+          disabled={scanning}
+          className="ml-auto"
+        >
+          {scanning ? "Scanning…" : "Scan for new photos"}
+        </Button>
+        {scanResult && (
+          <span className="text-sm text-muted-foreground">
+            {scanResult.added} added, {scanResult.skipped} skipped
+          </span>
+        )}
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {photos.map((photo) => (
+        {sortedPhotos.map((photo) => (
           <Card key={photo.id} className="overflow-hidden">
             <div className="group relative aspect-square bg-muted">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -153,9 +228,10 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
               <p className="text-xs text-muted-foreground">
                 {albumName(photo.album_id)}
               </p>
-              <p className="text-xs text-muted-foreground">
-                {new Date(photo.created_at).toLocaleDateString()}
-              </p>
+              <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                <span>{new Date(photo.created_at).toLocaleDateString()}</span>
+                <span className="font-mono">{formatSize(photo.file_size_bytes)}</span>
+              </div>
             </CardContent>
           </Card>
         ))}

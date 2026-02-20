@@ -102,6 +102,7 @@ export async function scanPhotos(): Promise<{ added: number; skipped: number }> 
         fs.copyFileSync(imagePath, destPath);
       }
 
+      const fileSizeBytes = fs.statSync(imagePath).size;
       const { metadata, thumbFilename, thumbLargeFilename, blurDataUrl } =
         await processImage(imagePath, filename);
 
@@ -118,6 +119,7 @@ export async function scanPhotos(): Promise<{ added: number; skipped: number }> 
         blur_data_url: blurDataUrl,
         album_id: null,
         exif_json: JSON.stringify(exif),
+        file_size_bytes: fileSizeBytes,
       });
 
       added++;
@@ -141,6 +143,7 @@ export async function processUploadedFile(
   const destPath = path.join(PHOTOS_DIR, filename);
   fs.writeFileSync(destPath, buffer);
 
+  const fileSizeBytes = buffer.length;
   const { metadata, thumbFilename, thumbLargeFilename, blurDataUrl } =
     await processImage(buffer, filename);
 
@@ -157,5 +160,6 @@ export async function processUploadedFile(
     blur_data_url: blurDataUrl,
     album_id: albumId || null,
     exif_json: JSON.stringify(exif),
+    file_size_bytes: fileSizeBytes,
   });
 }

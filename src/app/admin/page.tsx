@@ -210,6 +210,7 @@ export default function AdminPage() {
               thumbnail_path: p.thumbnail_path,
               album_id: p.album_id,
               created_at: p.created_at,
+              file_size_bytes: p.file_size_bytes || 0,
             }))}
             albums={albums.map((a) => ({
               id: a.id,

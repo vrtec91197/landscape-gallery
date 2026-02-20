@@ -68,6 +68,13 @@ function initializeDb(db: Database.Database) {
 
     CREATE INDEX IF NOT EXISTS idx_photo_views_photo ON photo_views(photo_id);
   `);
+
+  // Migration: add file_size_bytes if it doesn't exist yet
+  try {
+    db.exec("ALTER TABLE photos ADD COLUMN file_size_bytes INTEGER DEFAULT 0");
+  } catch {
+    // Column already exists — safe to ignore
+  }
 }
 
 export interface Photo {
@@ -81,6 +88,7 @@ export interface Photo {
   blur_data_url: string;
   album_id: number | null;
   exif_json: string;
+  file_size_bytes: number;
   created_at: string;
 }
 
@@ -129,7 +137,7 @@ export function getPhoto(id: number): Photo | undefined {
 export function createPhoto(photo: Omit<Photo, "id" | "created_at">): Photo {
   const db = getDb();
   const stmt = db.prepare(
-    "INSERT INTO photos (filename, path, width, height, thumbnail_path, thumbnail_large_path, blur_data_url, album_id, exif_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO photos (filename, path, width, height, thumbnail_path, thumbnail_large_path, blur_data_url, album_id, exif_json, file_size_bytes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   );
   const result = stmt.run(
     photo.filename,
@@ -140,7 +148,8 @@ export function createPhoto(photo: Omit<Photo, "id" | "created_at">): Photo {
     photo.thumbnail_large_path,
     photo.blur_data_url,
     photo.album_id,
-    photo.exif_json
+    photo.exif_json,
+    photo.file_size_bytes || 0
   );
   return getPhoto(result.lastInsertRowid as number)!;
 }
