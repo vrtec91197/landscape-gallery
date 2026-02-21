@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
     imageSizes: [128, 256, 384, 512],
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
   },
-  serverExternalPackages: ["better-sqlite3", "sharp"],
+  serverExternalPackages: ["better-sqlite3", "sharp", "exifr"],
   output: "standalone",
   experimental: {
     middlewareClientMaxBodySize: "100mb",

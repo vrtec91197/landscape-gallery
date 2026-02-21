@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import sharp from "sharp";
-import { createPhoto, photoExistsByPath, getPhotosWithoutSize, updatePhotoSize } from "./db";
+import { createPhoto, photoExistsByPath, getPhotosWithoutSize, updatePhotoSize, getPhotos, getDb } from "./db";
 import { extractExif } from "./exif";
 
 const SCAN_DIR = process.env.SCAN_DIR || path.join(process.cwd(), "photos");
@@ -77,6 +77,26 @@ async function processImage(input: Buffer | string, filename: string): Promise<P
   const blurDataUrl = await generateBlurDataUrl(input);
 
   return { metadata, thumbFilename, thumbLargeFilename, blurDataUrl };
+}
+
+export async function backfillExif(): Promise<number> {
+  const db = getDb();
+  const photos = db.prepare("SELECT id, path FROM photos WHERE exif_json = '{}' OR exif_json IS NULL OR exif_json = ''").all() as { id: number; path: string }[];
+  let updated = 0;
+  for (const photo of photos) {
+    const fullPath = path.join(PUBLIC_DIR, photo.path);
+    try {
+      const exif = await extractExif(fullPath);
+      const json = JSON.stringify(exif);
+      if (json !== "{}") {
+        db.prepare("UPDATE photos SET exif_json = ? WHERE id = ?").run(json, photo.id);
+        updated++;
+      }
+    } catch {
+      // skip
+    }
+  }
+  return updated;
 }
 
 export function backfillFileSizes(): number {

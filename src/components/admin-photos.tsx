@@ -54,7 +54,7 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
   const [editAlbumId, setEditAlbumId] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [scanResult, setScanResult] = useState<{ added: number; skipped: number; backfilled: number } | null>(null);
+  const [scanResult, setScanResult] = useState<{ added: number; skipped: number; backfilled: number; exifBackfilled: number } | null>(null);
 
   async function handleScan() {
     setScanning(true);
@@ -187,6 +187,7 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
           <span className="text-sm text-muted-foreground">
             {scanResult.added} added, {scanResult.skipped} skipped
             {scanResult.backfilled > 0 && `, ${scanResult.backfilled} sizes updated`}
+            {scanResult.exifBackfilled > 0 && `, ${scanResult.exifBackfilled} EXIF updated`}
           </span>
         )}
       </div>
