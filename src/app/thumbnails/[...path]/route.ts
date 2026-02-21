@@ -1,37 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { Readable } from "stream";
 
 const PUBLIC_DIR = path.join(process.cwd(), "public");
 
+const CONTENT_TYPES: Record<string, string> = {
+  ".webp": "image/webp",
+  ".avif": "image/avif",
+  ".png":  "image/png",
+  ".jpg":  "image/jpeg",
+  ".jpeg": "image/jpeg",
+};
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path: segments } = await params;
   const filePath = path.join(PUBLIC_DIR, "thumbnails", ...segments);
 
-  // Prevent path traversal
   if (!filePath.startsWith(path.join(PUBLIC_DIR, "thumbnails"))) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
-  if (!fs.existsSync(filePath)) {
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(filePath);
+  } catch {
     return new NextResponse("Not found", { status: 404 });
   }
 
-  const buffer = fs.readFileSync(filePath);
-  const ext = path.extname(filePath).toLowerCase();
-  const contentType =
-    ext === ".webp" ? "image/webp" :
-    ext === ".avif" ? "image/avif" :
-    ext === ".png" ? "image/png" :
-    "image/jpeg";
+  const etag = `"${stat.mtimeMs.toString(36)}-${stat.size.toString(36)}"`;
 
-  return new NextResponse(buffer, {
+  if (request.headers.get("if-none-match") === etag) {
+    return new NextResponse(null, {
+      status: 304,
+      headers: { "ETag": etag, "Cache-Control": "public, max-age=2592000, immutable" },
+    });
+  }
+
+  const contentType = CONTENT_TYPES[path.extname(filePath).toLowerCase()] ?? "image/jpeg";
+  const webStream = Readable.toWeb(fs.createReadStream(filePath)) as ReadableStream;
+
+  return new NextResponse(webStream, {
     headers: {
       "Content-Type": contentType,
+      "Content-Length": String(stat.size),
       "Cache-Control": "public, max-age=2592000, immutable",
+      "ETag": etag,
+      "Last-Modified": stat.mtime.toUTCString(),
     },
   });
 }

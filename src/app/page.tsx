@@ -1,11 +1,19 @@
-import { getPhotos } from "@/lib/db";
+import { getPhotos, getPhotoViewCounts } from "@/lib/db";
 import { PhotoGrid } from "@/components/photo-grid";
+import type { Photo } from "@/lib/db";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default function HomePage() {
-  const photos = getPhotos();
-  const recentPhotos = photos.slice(0, 12);
+  let photos: Photo[] = [];
+  let viewCounts: Record<number, number> = {};
+
+  try {
+    photos = getPhotos(undefined, 12);
+    viewCounts = getPhotoViewCounts();
+  } catch {
+    // DB not available at build time
+  }
 
   return (
     <div>
@@ -23,7 +31,7 @@ export default function HomePage() {
       {/* Recent Photos */}
       <section className="mx-auto max-w-7xl px-4 py-12">
         <h2 className="mb-6 text-2xl font-semibold">Recent Photos</h2>
-        <PhotoGrid photos={recentPhotos} />
+        <PhotoGrid photos={photos} viewCounts={viewCounts} />
       </section>
     </div>
   );

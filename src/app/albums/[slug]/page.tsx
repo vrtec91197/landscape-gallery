@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getAlbum, getPhotos, getPhotoViewCounts } from "@/lib/db";
 import { PhotoGrid } from "@/components/photo-grid";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 interface Props {
   params: Promise<{ slug: string }>;

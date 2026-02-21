@@ -3,7 +3,7 @@ import { getAlbums, getPhoto } from "@/lib/db";
 import { AlbumCard } from "@/components/album-card";
 import { CreateAlbumButton } from "@/components/create-album-button";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Albums",
@@ -15,16 +15,23 @@ export const metadata: Metadata = {
 };
 
 export default function AlbumsPage() {
-  const albums = getAlbums();
+  let albumsWithCovers: (ReturnType<typeof getAlbums>[number] & { coverUrl?: string })[] = [];
 
-  const albumsWithCovers = albums.map((album) => {
-    let coverUrl: string | undefined;
-    if (album.cover_photo_id) {
-      const coverPhoto = getPhoto(album.cover_photo_id);
-      coverUrl = coverPhoto?.thumbnail_path || coverPhoto?.path;
-    }
-    return { ...album, coverUrl };
-  });
+  try {
+    const albums = getAlbums();
+    albumsWithCovers = albums.map((album) => {
+      let coverUrl: string | undefined;
+      if (album.cover_photo_id) {
+        const coverPhoto = getPhoto(album.cover_photo_id);
+        coverUrl = coverPhoto?.thumbnail_path || coverPhoto?.path;
+      }
+      return { ...album, coverUrl };
+    });
+  } catch {
+    // DB not available at build time
+  }
+
+  const albums = albumsWithCovers;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">

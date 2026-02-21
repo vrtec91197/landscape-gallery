@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { getPhotos, getPhotoCount, getPhotoViewCounts } from "@/lib/db";
 import { GalleryClient } from "@/components/gallery-client";
+import type { Photo } from "@/lib/db";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Gallery",
@@ -16,9 +17,17 @@ export const metadata: Metadata = {
 const PAGE_SIZE = 30;
 
 export default function GalleryPage() {
-  const photos = getPhotos(undefined, PAGE_SIZE, 0);
-  const total = getPhotoCount();
-  const viewCounts = getPhotoViewCounts();
+  let photos: Photo[] = [];
+  let total = 0;
+  let viewCounts: Record<number, number> = {};
+
+  try {
+    photos = getPhotos(undefined, PAGE_SIZE, 0);
+    total = getPhotoCount();
+    viewCounts = getPhotoViewCounts();
+  } catch {
+    // DB not available at build time
+  }
 
   return (
     <div className="px-2 py-4 sm:px-4 sm:py-6">
