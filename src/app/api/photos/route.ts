@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { revalidatePath } from "next/cache";
 import { getPhotos, getPhotoCount, getPhoto, updatePhoto, deletePhoto } from "@/lib/db";
 import { scanPhotos, backfillFileSizes, backfillExif } from "@/lib/scanner";
 import { requireAuth } from "@/lib/auth";
@@ -29,6 +30,10 @@ export async function POST(request: NextRequest) {
   const result = await scanPhotos();
   const backfilled = backfillFileSizes();
   const exifBackfilled = await backfillExif();
+
+  revalidatePath("/");
+  revalidatePath("/gallery");
+
   return NextResponse.json({ ...result, backfilled, exifBackfilled });
 }
 

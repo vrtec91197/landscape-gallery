@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { UploadDialog } from "./upload-dialog";
 import { LoginDialog } from "./login-dialog";
+import { DonateDialog } from "./donate-dialog";
 import { ThemeToggle } from "./theme-toggle";
+import { Heart } from "lucide-react";
 
 export function Navbar() {
   const pathname = usePathname();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [donateOpen, setDonateOpen] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
 
   const checkAuth = () => {
@@ -58,6 +61,10 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
+            <Button size="sm" variant="outline" onClick={() => setDonateOpen(true)}>
+              <Heart className="mr-1 h-4 w-4" />
+              Donate
+            </Button>
             {authenticated ? (
               <>
                 <Link
@@ -88,6 +95,7 @@ export function Navbar() {
       </nav>
 
       <UploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
+      <DonateDialog open={donateOpen} onOpenChange={setDonateOpen} />
       <LoginDialog
         open={loginOpen}
         onOpenChange={setLoginOpen}

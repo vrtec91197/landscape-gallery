@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { processUploadedFile } from "@/lib/scanner";
 import { requireAuth } from "@/lib/auth";
 
@@ -26,6 +27,9 @@ export async function POST(request: NextRequest) {
     );
     results.push(photo);
   }
+
+  revalidatePath("/");
+  revalidatePath("/gallery");
 
   return NextResponse.json(results);
 }
