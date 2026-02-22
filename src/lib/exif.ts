@@ -13,6 +13,7 @@ export interface ExifData {
 
 export async function extractExif(filePath: string): Promise<ExifData> {
   try {
+    console.log(`[exif] parsing: ${filePath}`);
     const data = await exifr.parse(filePath, {
       pick: [
         "Make", "Model", "LensModel", "LensMake",
@@ -22,7 +23,12 @@ export async function extractExif(filePath: string): Promise<ExifData> {
       gps: true,
     });
 
-    if (!data) return {};
+    console.log(`[exif] raw result for ${filePath}:`, JSON.stringify(data));
+
+    if (!data) {
+      console.log(`[exif] no data returned (null/undefined) for ${filePath}`);
+      return {};
+    }
 
     const result: ExifData = {};
 
@@ -64,8 +70,10 @@ export async function extractExif(filePath: string): Promise<ExifData> {
       result.gps = { latitude: data.latitude, longitude: data.longitude };
     }
 
+    console.log(`[exif] extracted for ${filePath}:`, JSON.stringify(result));
     return result;
-  } catch {
+  } catch (err) {
+    console.error(`[exif] error parsing ${filePath}:`, err);
     return {};
   }
 }
