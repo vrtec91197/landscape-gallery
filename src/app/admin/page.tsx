@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { AdminTabs } from "@/components/admin-tabs";
 import { AdminPhotos } from "@/components/admin-photos";
+import { version } from "../../../package.json";
 
 export const dynamic = "force-dynamic";
 
@@ -197,7 +198,12 @@ export default function AdminPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+          v{version}
+        </span>
+      </div>
 
       <AdminTabs
         analyticsContent={<AnalyticsContent />}

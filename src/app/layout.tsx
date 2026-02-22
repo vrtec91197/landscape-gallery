@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/navbar";
+import { Footer } from "@/components/footer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PageTracker } from "@/components/page-tracker";
 
@@ -64,6 +65,7 @@ export default function RootLayout({
           <PageTracker />
           <Navbar />
           <main>{children}</main>
+          <Footer />
         </ThemeProvider>
       </body>
     </html>
