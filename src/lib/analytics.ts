@@ -44,7 +44,7 @@ interface TopItem {
   count: number;
 }
 
-interface AnalyticsSummary {
+export interface AnalyticsSummary {
   totalViews: number;
   uniqueVisitors: number;
   viewsToday: number;
@@ -57,17 +57,37 @@ interface AnalyticsSummary {
   topCountries: TopItem[];
 }
 
-export function getAnalyticsSummary(days: number = 30): AnalyticsSummary {
+export interface AnalyticsOptions {
+  days?: number;
+  from?: string; // YYYY-MM-DD
+  to?: string;   // YYYY-MM-DD
+}
+
+function toSQLite(d: Date): string {
+  return d.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, "");
+}
+
+function resolveDateRange(opts: AnalyticsOptions): [string, string] {
+  if (opts.from && opts.to) {
+    return [`${opts.from} 00:00:00`, `${opts.to} 23:59:59`];
+  }
+  const now = new Date();
+  const days = opts.days ?? 30;
+  const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  return [toSQLite(since), toSQLite(now)];
+}
+
+export function getAnalyticsSummary(opts: AnalyticsOptions = {}): AnalyticsSummary {
   const db = getDb();
-  const since = `datetime('now', '-${days} days')`;
+  const [since, until] = resolveDateRange(opts);
 
   const totalViews = (db.prepare(
-    `SELECT COUNT(*) as count FROM page_views WHERE created_at >= ${since}`
-  ).get() as { count: number }).count;
+    "SELECT COUNT(*) as count FROM page_views WHERE created_at >= ? AND created_at <= ?"
+  ).get(since, until) as { count: number }).count;
 
   const uniqueVisitors = (db.prepare(
-    `SELECT COUNT(DISTINCT ip_hash) as count FROM page_views WHERE created_at >= ${since}`
-  ).get() as { count: number }).count;
+    "SELECT COUNT(DISTINCT ip_hash) as count FROM page_views WHERE created_at >= ? AND created_at <= ?"
+  ).get(since, until) as { count: number }).count;
 
   const viewsToday = (db.prepare(
     "SELECT COUNT(*) as count FROM page_views WHERE created_at >= datetime('now', 'start of day')"
@@ -82,24 +102,24 @@ export function getAnalyticsSummary(days: number = 30): AnalyticsSummary {
   ).get() as { count: number }).count;
 
   const topPages = db.prepare(
-    `SELECT path as name, COUNT(*) as count FROM page_views WHERE created_at >= ${since} GROUP BY path ORDER BY count DESC LIMIT 10`
-  ).all() as TopItem[];
+    "SELECT path as name, COUNT(*) as count FROM page_views WHERE created_at >= ? AND created_at <= ? GROUP BY path ORDER BY count DESC LIMIT 10"
+  ).all(since, until) as TopItem[];
 
   const topReferrers = db.prepare(
-    `SELECT referrer as name, COUNT(*) as count FROM page_views WHERE created_at >= ${since} AND referrer != '' GROUP BY referrer ORDER BY count DESC LIMIT 10`
-  ).all() as TopItem[];
+    "SELECT referrer as name, COUNT(*) as count FROM page_views WHERE created_at >= ? AND created_at <= ? AND referrer != '' GROUP BY referrer ORDER BY count DESC LIMIT 10"
+  ).all(since, until) as TopItem[];
 
   const topBrowsers = db.prepare(
-    `SELECT browser as name, COUNT(*) as count FROM page_views WHERE created_at >= ${since} AND browser != '' GROUP BY browser ORDER BY count DESC LIMIT 10`
-  ).all() as TopItem[];
+    "SELECT browser as name, COUNT(*) as count FROM page_views WHERE created_at >= ? AND created_at <= ? AND browser != '' GROUP BY browser ORDER BY count DESC LIMIT 10"
+  ).all(since, until) as TopItem[];
 
   const topDevices = db.prepare(
-    `SELECT device as name, COUNT(*) as count FROM page_views WHERE created_at >= ${since} AND device != '' GROUP BY device ORDER BY count DESC LIMIT 10`
-  ).all() as TopItem[];
+    "SELECT device as name, COUNT(*) as count FROM page_views WHERE created_at >= ? AND created_at <= ? AND device != '' GROUP BY device ORDER BY count DESC LIMIT 10"
+  ).all(since, until) as TopItem[];
 
   const topCountries = db.prepare(
-    `SELECT country as name, COUNT(*) as count FROM page_views WHERE created_at >= ${since} AND country != '' GROUP BY country ORDER BY count DESC LIMIT 10`
-  ).all() as TopItem[];
+    "SELECT country as name, COUNT(*) as count FROM page_views WHERE created_at >= ? AND created_at <= ? AND country != '' GROUP BY country ORDER BY count DESC LIMIT 10"
+  ).all(since, until) as TopItem[];
 
   return {
     totalViews,
@@ -115,18 +135,19 @@ export function getAnalyticsSummary(days: number = 30): AnalyticsSummary {
   };
 }
 
-interface DailyViews {
+export interface DailyViews {
   date: string;
   views: number;
 }
 
-export function getViewsOverTime(days: number = 30): DailyViews[] {
+export function getViewsOverTime(opts: AnalyticsOptions = {}): DailyViews[] {
   const db = getDb();
+  const [since, until] = resolveDateRange(opts);
   return db.prepare(
     `SELECT date(created_at) as date, COUNT(*) as views
      FROM page_views
-     WHERE created_at >= datetime('now', '-${days} days')
+     WHERE created_at >= ? AND created_at <= ?
      GROUP BY date(created_at)
      ORDER BY date ASC`
-  ).all() as DailyViews[];
+  ).all(since, until) as DailyViews[];
 }
