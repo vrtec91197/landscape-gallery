@@ -9,7 +9,7 @@ export default function HomePage() {
   let viewCounts: Record<number, number> = {};
 
   try {
-    photos = getPhotos(undefined, 12);
+    photos = getPhotos({ limit: 12 });
     viewCounts = getPhotoViewCounts();
   } catch {
     // DB not available at build time

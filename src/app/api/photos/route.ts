@@ -2,22 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { revalidatePath } from "next/cache";
-import { getPhotos, getPhotoCount, getPhoto, updatePhoto, deletePhoto } from "@/lib/db";
-import { scanPhotos, backfillFileSizes, backfillExif } from "@/lib/scanner";
+import { getPhotos, getPhotoCount, getPhoto, updatePhoto, deletePhoto, setPhotoTags, createTag, getPhotoTags } from "@/lib/db";
+import { scanPhotos, backfillFileSizes, backfillExif, backfillDominantHue } from "@/lib/scanner";
 import { requireAuth } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const albumId = request.nextUrl.searchParams.get("albumId");
   const limit = request.nextUrl.searchParams.get("limit");
   const offset = request.nextUrl.searchParams.get("offset");
+  const sort = request.nextUrl.searchParams.get("sort") as 'newest' | 'oldest' | 'views' | 'color' | null;
+  const tag = request.nextUrl.searchParams.get("tag") ?? undefined;
 
   const parsedAlbumId = albumId ? parseInt(albumId) : undefined;
-  const photos = getPhotos(
-    parsedAlbumId,
-    limit ? parseInt(limit) : undefined,
-    offset ? parseInt(offset) : undefined
-  );
-  const total = getPhotoCount(parsedAlbumId);
+  const photos = getPhotos({
+    albumId: parsedAlbumId,
+    limit: limit ? parseInt(limit) : undefined,
+    offset: offset ? parseInt(offset) : undefined,
+    sort: sort ?? 'newest',
+    tag,
+  });
+  const total = getPhotoCount(parsedAlbumId, tag);
 
   return NextResponse.json({ photos, total });
 }
@@ -30,11 +34,12 @@ export async function POST(request: NextRequest) {
   const result = await scanPhotos();
   const backfilled = backfillFileSizes();
   const exifBackfilled = await backfillExif();
+  const hueBackfilled = await backfillDominantHue();
 
   revalidatePath("/");
   revalidatePath("/gallery");
 
-  return NextResponse.json({ ...result, backfilled, exifBackfilled });
+  return NextResponse.json({ ...result, backfilled, exifBackfilled, hueBackfilled });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -42,7 +47,7 @@ export async function PATCH(request: NextRequest) {
   if (authErr) return authErr;
 
   const body = await request.json();
-  const { id, album_id, filename } = body;
+  const { id, album_id, filename, tags } = body;
 
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -54,7 +59,14 @@ export async function PATCH(request: NextRequest) {
   }
 
   const updated = updatePhoto(id, { album_id, filename });
-  return NextResponse.json(updated);
+
+  if (Array.isArray(tags)) {
+    const tagObjects = tags.map((name: string) => createTag(name));
+    setPhotoTags(id, tagObjects.map(t => t.id));
+  }
+
+  const updatedWithTags = { ...updated, tags: getPhotoTags(id) };
+  return NextResponse.json(updatedWithTags);
 }
 
 export async function DELETE(request: NextRequest) {

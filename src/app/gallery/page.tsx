@@ -22,7 +22,7 @@ export default function GalleryPage() {
   let viewCounts: Record<number, number> = {};
 
   try {
-    photos = getPhotos(undefined, PAGE_SIZE, 0);
+    photos = getPhotos({ limit: PAGE_SIZE, offset: 0 });
     total = getPhotoCount();
     viewCounts = getPhotoViewCounts();
   } catch {

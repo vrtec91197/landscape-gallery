@@ -37,7 +37,7 @@ export default async function AlbumDetailPage({ params }: Props) {
     notFound();
   }
 
-  const photos = getPhotos(album.id);
+  const photos = getPhotos({ albumId: album.id });
   const viewCounts = getPhotoViewCounts();
 
   return (

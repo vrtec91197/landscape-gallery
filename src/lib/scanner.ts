@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import sharp from "sharp";
-import { createPhoto, photoExistsByPath, getPhotosWithoutSize, updatePhotoSize, getPhotos, getDb } from "./db";
+import { createPhoto, photoExistsByPath, getPhotosWithoutSize, updatePhotoSize, getPhotos, getDb, getPhotosWithoutHue, updatePhotoDominantHue } from "./db";
 import { extractExif } from "./exif";
 
 const SCAN_DIR = process.env.SCAN_DIR || path.join(process.cwd(), "photos");
@@ -10,6 +10,32 @@ const PHOTOS_DIR = path.join(PUBLIC_DIR, "photos");
 const THUMBS_DIR = path.join(PUBLIC_DIR, "thumbnails");
 
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".tiff", ".tif"]);
+
+function rgbToHue(r: number, g: number, b: number): number | null {
+  const rn = r / 255, gn = g / 255, bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const delta = max - min;
+  if (delta < 0.1) return null; // achromatic / near-grayscale
+  let h = 0;
+  if (max === rn) h = ((gn - bn) / delta) % 6;
+  else if (max === gn) h = (bn - rn) / delta + 2;
+  else h = (rn - gn) / delta + 4;
+  h = Math.round(h * 60);
+  if (h < 0) h += 360;
+  return h;
+}
+
+async function extractDominantHue(input: Buffer | string): Promise<number | null> {
+  try {
+    const stats = await sharp(input).stats();
+    const d = (stats as unknown as { dominant?: { r: number; g: number; b: number } }).dominant;
+    if (!d) return null;
+    return rgbToHue(d.r, d.g, d.b);
+  } catch {
+    return null;
+  }
+}
 
 function ensureDirs() {
   for (const dir of [PHOTOS_DIR, THUMBS_DIR]) {
@@ -145,6 +171,8 @@ export async function scanPhotos(): Promise<{ added: number; skipped: number }> 
       // Extract EXIF
       const exif = await extractExif(imagePath);
 
+      const dominantHue = await extractDominantHue(imagePath);
+
       createPhoto({
         filename,
         path: publicPath,
@@ -156,6 +184,7 @@ export async function scanPhotos(): Promise<{ added: number; skipped: number }> 
         album_id: null,
         exif_json: JSON.stringify(exif),
         file_size_bytes: fileSizeBytes,
+        dominant_hue: dominantHue,
       });
 
       added++;
@@ -186,6 +215,8 @@ export async function processUploadedFile(
   // Extract EXIF
   const exif = await extractExif(destPath);
 
+  const dominantHue = await extractDominantHue(buffer);
+
   return createPhoto({
     filename,
     path: `/photos/${filename}`,
@@ -197,5 +228,22 @@ export async function processUploadedFile(
     album_id: albumId || null,
     exif_json: JSON.stringify(exif),
     file_size_bytes: fileSizeBytes,
+    dominant_hue: dominantHue,
   });
+}
+
+export async function backfillDominantHue(): Promise<number> {
+  const photos = getPhotosWithoutHue();
+  let updated = 0;
+  for (const photo of photos) {
+    const fullPath = path.join(PUBLIC_DIR, photo.path);
+    try {
+      const hue = await extractDominantHue(fullPath);
+      updatePhotoDominantHue(photo.id, hue);
+      updated++;
+    } catch {
+      // skip
+    }
+  }
+  return updated;
 }

@@ -79,6 +79,27 @@ function initializeDb(db: Database.Database) {
   } catch {
     // Column already exists — safe to ignore
   }
+
+  // dominant_hue for color sorting
+  try { db.exec("ALTER TABLE photos ADD COLUMN dominant_hue INTEGER DEFAULT NULL"); } catch {}
+
+  // Tags
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_tags_slug ON tags(slug);
+    CREATE TABLE IF NOT EXISTS photo_tags (
+      photo_id INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+      tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (photo_id, tag_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_photo_tags_photo ON photo_tags(photo_id);
+    CREATE INDEX IF NOT EXISTS idx_photo_tags_tag ON photo_tags(tag_id);
+  `);
 }
 
 export interface Photo {
@@ -94,6 +115,7 @@ export interface Photo {
   exif_json: string;
   file_size_bytes: number;
   created_at: string;
+  dominant_hue?: number | null;
 }
 
 export interface Album {
@@ -105,13 +127,58 @@ export interface Album {
   created_at: string;
 }
 
-export function getPhotos(albumId?: number, limit?: number, offset?: number): Photo[] {
-  const db = getDb();
-  let query = albumId
-    ? "SELECT * FROM photos WHERE album_id = ? ORDER BY created_at DESC"
-    : "SELECT * FROM photos ORDER BY created_at DESC";
+export interface Tag {
+  id: number;
+  name: string;
+  slug: string;
+  created_at: string;
+}
 
-  const params: unknown[] = albumId ? [albumId] : [];
+export interface GetPhotosOptions {
+  albumId?: number;
+  limit?: number;
+  offset?: number;
+  sort?: 'newest' | 'oldest' | 'views' | 'color';
+  tag?: string; // tag slug
+}
+
+export function getPhotos(opts: GetPhotosOptions = {}): Photo[] {
+  const db = getDb();
+  const { albumId, limit, offset, sort = 'newest', tag } = opts;
+
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (albumId) {
+    conditions.push("p.album_id = ?");
+    params.push(albumId);
+  }
+
+  let tagJoin = "";
+  if (tag) {
+    tagJoin = "INNER JOIN photo_tags pt ON pt.photo_id = p.id INNER JOIN tags t ON t.id = pt.tag_id";
+    conditions.push("t.slug = ?");
+    params.push(tag);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  let orderBy: string;
+  switch (sort) {
+    case 'oldest':
+      orderBy = "p.created_at ASC";
+      break;
+    case 'color':
+      orderBy = "CASE WHEN p.dominant_hue IS NULL THEN 1 ELSE 0 END ASC, p.dominant_hue ASC";
+      break;
+    case 'views':
+      orderBy = "(SELECT COUNT(*) FROM photo_views WHERE photo_id = p.id) DESC, p.created_at DESC";
+      break;
+    default:
+      orderBy = "p.created_at DESC";
+  }
+
+  let query = `SELECT p.* FROM photos p ${tagJoin} ${where} ORDER BY ${orderBy}`;
 
   if (limit) {
     query += " LIMIT ?";
@@ -125,12 +192,26 @@ export function getPhotos(albumId?: number, limit?: number, offset?: number): Ph
   return db.prepare(query).all(...params) as Photo[];
 }
 
-export function getPhotoCount(albumId?: number): number {
+export function getPhotoCount(albumId?: number, tag?: string): number {
   const db = getDb();
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
   if (albumId) {
-    return (db.prepare("SELECT COUNT(*) as count FROM photos WHERE album_id = ?").get(albumId) as { count: number }).count;
+    conditions.push("p.album_id = ?");
+    params.push(albumId);
   }
-  return (db.prepare("SELECT COUNT(*) as count FROM photos").get() as { count: number }).count;
+
+  let tagJoin = "";
+  if (tag) {
+    tagJoin = "INNER JOIN photo_tags pt ON pt.photo_id = p.id INNER JOIN tags t ON t.id = pt.tag_id";
+    conditions.push("t.slug = ?");
+    params.push(tag);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const query = `SELECT COUNT(*) as count FROM photos p ${tagJoin} ${where}`;
+  return (db.prepare(query).get(...params) as { count: number }).count;
 }
 
 export function getPhoto(id: number): Photo | undefined {
@@ -141,7 +222,7 @@ export function getPhoto(id: number): Photo | undefined {
 export function createPhoto(photo: Omit<Photo, "id" | "created_at">): Photo {
   const db = getDb();
   const stmt = db.prepare(
-    "INSERT INTO photos (filename, path, width, height, thumbnail_path, thumbnail_large_path, blur_data_url, album_id, exif_json, file_size_bytes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO photos (filename, path, width, height, thumbnail_path, thumbnail_large_path, blur_data_url, album_id, exif_json, file_size_bytes, dominant_hue) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   );
   const result = stmt.run(
     photo.filename,
@@ -153,7 +234,8 @@ export function createPhoto(photo: Omit<Photo, "id" | "created_at">): Photo {
     photo.blur_data_url,
     photo.album_id,
     photo.exif_json,
-    photo.file_size_bytes || 0
+    photo.file_size_bytes || 0,
+    photo.dominant_hue ?? null
   );
   return getPhoto(result.lastInsertRowid as number)!;
 }
@@ -258,4 +340,43 @@ export function getTopViewedPhotos(limit: number = 10): { photo_id: number; file
     ORDER BY views DESC
     LIMIT ?
   `).all(limit) as { photo_id: number; filename: string; path: string; thumbnail_path: string; views: number }[];
+}
+
+export function updatePhotoDominantHue(id: number, hue: number | null): void {
+  const db = getDb();
+  db.prepare("UPDATE photos SET dominant_hue = ? WHERE id = ?").run(hue, id);
+}
+
+export function getPhotosWithoutHue(): Pick<Photo, "id" | "path">[] {
+  const db = getDb();
+  return db.prepare("SELECT id, path FROM photos WHERE dominant_hue IS NULL").all() as Pick<Photo, "id" | "path">[];
+}
+
+export function getTags(): Tag[] {
+  const db = getDb();
+  return db.prepare("SELECT * FROM tags ORDER BY name ASC").all() as Tag[];
+}
+
+export function createTag(name: string): Tag {
+  const db = getDb();
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const existing = db.prepare("SELECT * FROM tags WHERE slug = ?").get(slug) as Tag | undefined;
+  if (existing) return existing;
+  const result = db.prepare("INSERT INTO tags (name, slug) VALUES (?, ?)").run(name.trim(), slug);
+  return db.prepare("SELECT * FROM tags WHERE id = ?").get(result.lastInsertRowid) as Tag;
+}
+
+export function getPhotoTags(photoId: number): Tag[] {
+  const db = getDb();
+  return db.prepare(
+    "SELECT t.* FROM tags t INNER JOIN photo_tags pt ON pt.tag_id = t.id WHERE pt.photo_id = ? ORDER BY t.name ASC"
+  ).all(photoId) as Tag[];
+}
+
+export function setPhotoTags(photoId: number, tagIds: number[]): void {
+  const db = getDb();
+  db.prepare("DELETE FROM photo_tags WHERE photo_id = ?").run(photoId);
+  for (const tagId of tagIds) {
+    db.prepare("INSERT OR IGNORE INTO photo_tags (photo_id, tag_id) VALUES (?, ?)").run(photoId, tagId);
+  }
 }

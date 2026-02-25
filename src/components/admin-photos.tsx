@@ -52,9 +52,11 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
   const [editTarget, setEditTarget] = useState<Photo | null>(null);
   const [editFilename, setEditFilename] = useState("");
   const [editAlbumId, setEditAlbumId] = useState<string>("");
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [scanResult, setScanResult] = useState<{ added: number; skipped: number; backfilled: number; exifBackfilled: number } | null>(null);
+  const [scanResult, setScanResult] = useState<{ added: number; skipped: number; backfilled: number; exifBackfilled: number; hueBackfilled: number } | null>(null);
 
   async function handleScan() {
     setScanning(true);
@@ -76,10 +78,17 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
     }
   }
 
-  function openEdit(photo: Photo) {
+  async function openEdit(photo: Photo) {
     setEditTarget(photo);
     setEditFilename(photo.filename);
     setEditAlbumId(photo.album_id ? String(photo.album_id) : "none");
+    setEditTags([]);
+    setTagInput("");
+    const res = await fetch(`/api/tags?photoId=${photo.id}`);
+    if (res.ok) {
+      const tags = await res.json();
+      setEditTags(tags.map((t: { name: string }) => t.name));
+    }
   }
 
   async function handleDelete() {
@@ -110,6 +119,7 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
       if (newAlbumId !== editTarget.album_id) {
         body.album_id = newAlbumId;
       }
+      body.tags = editTags;
 
       const res = await fetch("/api/photos", {
         method: "PATCH",
@@ -169,8 +179,8 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
           <SelectContent>
             <SelectItem value="date_desc">Date (newest first)</SelectItem>
             <SelectItem value="date_asc">Date (oldest first)</SelectItem>
-            <SelectItem value="name_asc">Name A → Z</SelectItem>
-            <SelectItem value="name_desc">Name Z → A</SelectItem>
+            <SelectItem value="name_asc">Name A &#8594; Z</SelectItem>
+            <SelectItem value="name_desc">Name Z &#8594; A</SelectItem>
             <SelectItem value="size_desc">Size (largest first)</SelectItem>
             <SelectItem value="size_asc">Size (smallest first)</SelectItem>
           </SelectContent>
@@ -181,13 +191,14 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
           disabled={scanning}
           className="ml-auto"
         >
-          {scanning ? "Scanning…" : "Scan for new photos"}
+          {scanning ? "Scanning\u2026" : "Scan for new photos"}
         </Button>
         {scanResult && (
           <span className="text-sm text-muted-foreground">
             {scanResult.added} added, {scanResult.skipped} skipped
             {scanResult.backfilled > 0 && `, ${scanResult.backfilled} sizes updated`}
             {scanResult.exifBackfilled > 0 && `, ${scanResult.exifBackfilled} EXIF updated`}
+            {scanResult.hueBackfilled > 0 && `, ${scanResult.hueBackfilled} colors updated`}
           </span>
         )}
       </div>
@@ -281,7 +292,7 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
           <DialogHeader>
             <DialogTitle>Edit Photo</DialogTitle>
             <DialogDescription>
-              Update the filename or album assignment for this photo.
+              Update the filename, album assignment, or tags for this photo.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -308,6 +319,38 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <div className="flex flex-wrap gap-1 min-h-8">
+                {editTags.map(tag => (
+                  <span key={tag} className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs">
+                    {tag}
+                    <button type="button" onClick={() => setEditTags(prev => prev.filter(t => t !== tag))} className="text-muted-foreground hover:text-foreground">&times;</button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add tag..."
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+                      e.preventDefault();
+                      const tag = tagInput.trim().replace(/,$/, '');
+                      if (tag && !editTags.includes(tag)) setEditTags(prev => [...prev, tag]);
+                      setTagInput('');
+                    }
+                  }}
+                />
+                <Button type="button" variant="outline" size="sm" onClick={() => {
+                  const tag = tagInput.trim();
+                  if (tag && !editTags.includes(tag)) setEditTags(prev => [...prev, tag]);
+                  setTagInput('');
+                }}>Add</Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Press Enter or comma to add a tag</p>
             </div>
           </div>
           <DialogFooter>
