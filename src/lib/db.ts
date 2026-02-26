@@ -100,6 +100,21 @@ function initializeDb(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_photo_tags_photo ON photo_tags(photo_id);
     CREATE INDEX IF NOT EXISTS idx_photo_tags_tag ON photo_tags(tag_id);
   `);
+
+  // Photo view log — full metadata, no UNIQUE constraint (every view event)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS photo_view_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      photo_id INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+      ip_hash TEXT NOT NULL,
+      browser TEXT DEFAULT '',
+      device TEXT DEFAULT '',
+      country TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_pvl_photo ON photo_view_log(photo_id);
+    CREATE INDEX IF NOT EXISTS idx_pvl_created ON photo_view_log(created_at);
+  `);
 }
 
 export interface Photo {
@@ -379,4 +394,45 @@ export function setPhotoTags(photoId: number, tagIds: number[]): void {
   for (const tagId of tagIds) {
     db.prepare("INSERT OR IGNORE INTO photo_tags (photo_id, tag_id) VALUES (?, ?)").run(photoId, tagId);
   }
+}
+
+export interface PhotoViewer {
+  ip_hash: string;
+  browser: string;
+  device: string;
+  country: string;
+  total_views: number;
+  first_seen: string;
+  last_seen: string;
+}
+
+export function logPhotoView(
+  photoId: number,
+  ipHash: string,
+  browser: string,
+  device: string,
+  country: string
+): void {
+  const db = getDb();
+  db.prepare(
+    "INSERT INTO photo_view_log (photo_id, ip_hash, browser, device, country) VALUES (?, ?, ?, ?, ?)"
+  ).run(photoId, ipHash, browser, device, country);
+}
+
+export function getPhotoViewers(photoId: number): PhotoViewer[] {
+  const db = getDb();
+  return db.prepare(`
+    SELECT
+      ip_hash,
+      browser,
+      device,
+      country,
+      COUNT(*) as total_views,
+      MIN(created_at) as first_seen,
+      MAX(created_at) as last_seen
+    FROM photo_view_log
+    WHERE photo_id = ?
+    GROUP BY ip_hash
+    ORDER BY last_seen DESC
+  `).all(photoId) as PhotoViewer[];
 }

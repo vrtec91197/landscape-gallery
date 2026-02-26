@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Trash2, Pencil } from "lucide-react";
+import { Trash2, Pencil, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -54,6 +54,9 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
   const [editAlbumId, setEditAlbumId] = useState<string>("");
   const [editTags, setEditTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [viewersTarget, setViewersTarget] = useState<Photo | null>(null);
+  const [viewers, setViewers] = useState<{ ip_hash: string; browser: string; device: string; country: string; total_views: number; first_seen: string; last_seen: string }[]>([]);
+  const [viewersLoading, setViewersLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<{ added: number; skipped: number; backfilled: number; exifBackfilled: number; hueBackfilled: number } | null>(null);
@@ -88,6 +91,18 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
     if (res.ok) {
       const tags = await res.json();
       setEditTags(tags.map((t: { name: string }) => t.name));
+    }
+  }
+
+  async function openViewers(photo: Photo) {
+    setViewersTarget(photo);
+    setViewers([]);
+    setViewersLoading(true);
+    try {
+      const res = await fetch(`/api/photos/viewers?photoId=${photo.id}`);
+      if (res.ok) setViewers(await res.json());
+    } finally {
+      setViewersLoading(false);
     }
   }
 
@@ -222,6 +237,15 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
                   variant="secondary"
                   size="icon"
                   className="h-8 w-8"
+                  title="View audience"
+                  onClick={() => openViewers(photo)}
+                >
+                  <Users className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-8 w-8"
                   onClick={() => openEdit(photo)}
                 >
                   <Pencil className="h-4 w-4" />
@@ -279,6 +303,55 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
             >
               {loading ? "Deleting..." : "Delete"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Viewers Dialog */}
+      <Dialog open={!!viewersTarget} onOpenChange={(open) => !open && setViewersTarget(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Viewers — {viewersTarget?.filename}</DialogTitle>
+            <DialogDescription>
+              Unique visitors who viewed this photo, grouped by browser fingerprint.
+            </DialogDescription>
+          </DialogHeader>
+          {viewersLoading ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+          ) : viewers.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">No views recorded yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="pb-2 pr-4">Visitor</th>
+                    <th className="pb-2 pr-4">Browser</th>
+                    <th className="pb-2 pr-4">Device</th>
+                    <th className="pb-2 pr-4">Country</th>
+                    <th className="pb-2 pr-4 text-right">Views</th>
+                    <th className="pb-2 pr-4">First Seen</th>
+                    <th className="pb-2">Last Seen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewers.map((v) => (
+                    <tr key={v.ip_hash} className="border-b last:border-0">
+                      <td className="py-2 pr-4 font-mono text-xs">{v.ip_hash.substring(0, 8)}</td>
+                      <td className="py-2 pr-4">{v.browser || "—"}</td>
+                      <td className="py-2 pr-4">{v.device || "—"}</td>
+                      <td className="py-2 pr-4">{v.country || "—"}</td>
+                      <td className="py-2 pr-4 text-right tabular-nums">{v.total_views}</td>
+                      <td className="py-2 pr-4 text-xs text-muted-foreground">{new Date(v.first_seen).toLocaleString()}</td>
+                      <td className="py-2 text-xs text-muted-foreground">{new Date(v.last_seen).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewersTarget(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
