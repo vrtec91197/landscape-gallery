@@ -54,6 +54,7 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
   const [editAlbumId, setEditAlbumId] = useState<string>("");
   const [editTags, setEditTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [resettingViews, setResettingViews] = useState(false);
   const [viewersTarget, setViewersTarget] = useState<Photo | null>(null);
   const [viewers, setViewers] = useState<{ ip_hash: string; browser: string; device: string; country: string; total_views: number; first_seen: string; last_seen: string }[]>([]);
   const [viewersLoading, setViewersLoading] = useState(false);
@@ -91,6 +92,16 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
     if (res.ok) {
       const tags = await res.json();
       setEditTags(tags.map((t: { name: string }) => t.name));
+    }
+  }
+
+  async function handleResetViews() {
+    if (!confirm("Reset all view counts for all photos? This cannot be undone.")) return;
+    setResettingViews(true);
+    try {
+      await fetch("/api/photos/views", { method: "DELETE" });
+    } finally {
+      setResettingViews(false);
     }
   }
 
@@ -202,9 +213,16 @@ export function AdminPhotos({ initialPhotos, albums }: AdminPhotosProps) {
         </Select>
         <Button
           variant="outline"
+          onClick={handleResetViews}
+          disabled={resettingViews}
+          className="ml-auto text-destructive hover:text-destructive"
+        >
+          {resettingViews ? "Resetting…" : "Reset all views"}
+        </Button>
+        <Button
+          variant="outline"
           onClick={handleScan}
           disabled={scanning}
-          className="ml-auto"
         >
           {scanning ? "Scanning\u2026" : "Scan for new photos"}
         </Button>

@@ -332,6 +332,12 @@ export function updatePhotoSize(id: number, fileSizeBytes: number): void {
   db.prepare("UPDATE photos SET file_size_bytes = ? WHERE id = ?").run(fileSizeBytes, id);
 }
 
+export function resetAllPhotoViews(): void {
+  const db = getDb();
+  db.prepare("DELETE FROM photo_views").run();
+  db.prepare("DELETE FROM photo_view_log").run();
+}
+
 export function recordPhotoView(photoId: number, ipHash: string): void {
   const db = getDb();
   db.prepare("INSERT OR IGNORE INTO photo_views (photo_id, ip_hash) VALUES (?, ?)").run(photoId, ipHash);
